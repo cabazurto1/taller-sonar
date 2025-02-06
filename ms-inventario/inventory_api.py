@@ -3,19 +3,42 @@
 
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS  # Importar Flask-CORS
+from flask_cors import CORS
 from datetime import datetime
+from dotenv import load_dotenv
+import os
 
+# Cargar las variables de entorno del archivo .env
+load_dotenv()
+
+# Definir constantes
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+NOT_FOUND_MESSAGE = "Registro no encontrado"
+ERROR_MESSAGE = "error"
+
+# Configuración de la aplicación Flask
 app = Flask(__name__)
 
 # Habilitar CORS para toda la aplicación
-CORS(app)
+CORS(app, resources={
+    r"/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "PUT", "DELETE"],
+        "allow_headers": ["Content-Type"]
+    }
+})
 
-# Configuración de la base de datos MySQL.
-# Ajusta los parámetros (host, usuario, contraseña, base de datos) según tu entorno.
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@localhost/bd-taller'
+# Obtener las variables de entorno para la base de datos
+db_user = os.getenv('DB_USER')
+db_password = os.getenv('DB_PASSWORD')
+db_host = os.getenv('DB_HOST')
+db_name = os.getenv('DB_NAME')
+
+# Configuración de la base de datos MySQL
+app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{db_user}:{db_password}@{db_host}/{db_name}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Inicializar la base de datos
 db = SQLAlchemy(app)
 
 # Modelo para el Inventario
@@ -33,8 +56,8 @@ class Inventory(db.Model):
             'id': self.id,
             'producto': self.producto,
             'cantidad': self.cantidad,
-            'fecha_ingreso': self.fecha_ingreso.strftime("%Y-%m-%d %H:%M:%S") if self.fecha_ingreso else None,
-            'fecha_descargo': self.fecha_descargo.strftime("%Y-%m-%d %H:%M:%S") if self.fecha_descargo else None,
+            'fecha_ingreso': self.fecha_ingreso.strftime(DATE_FORMAT) if self.fecha_ingreso else None,
+            'fecha_descargo': self.fecha_descargo.strftime(DATE_FORMAT) if self.fecha_descargo else None,
             'usuario_responsable': self.usuario_responsable
         }
 
@@ -59,19 +82,18 @@ def get_inventory_item(item_id):
     if item:
         return jsonify(item.to_dict())
     else:
-        return jsonify({'message': 'Registro no encontrado'}), 404
+        return jsonify({'message': NOT_FOUND_MESSAGE}), 404
 
 # Crear un nuevo registro en el inventario
 @app.route('/inventory', methods=['POST'])
 def create_inventory_item():
     data = request.get_json()
-    # Se espera que el JSON contenga: producto, cantidad, (opcional: fecha_descargo), usuario_responsable.
     try:
         nuevo_item = Inventory(
             producto=data['producto'],
             cantidad=data['cantidad'],
             fecha_ingreso=datetime.utcnow(),  # Se asigna la fecha de ingreso actual
-            fecha_descargo=datetime.strptime(data['fecha_descargo'], "%Y-%m-%d %H:%M:%S") if 'fecha_descargo' in data and data['fecha_descargo'] else None,
+            fecha_descargo=datetime.strptime(data['fecha_descargo'], DATE_FORMAT) if 'fecha_descargo' in data and data['fecha_descargo'] else None,
             usuario_responsable=data['usuario_responsable']
         )
         db.session.add(nuevo_item)
@@ -87,15 +109,14 @@ def update_inventory_item(item_id):
     data = request.get_json()
     item = Inventory.query.get(item_id)
     if not item:
-        return jsonify({'message': 'Registro no encontrado'}), 404
+        return jsonify({'message': NOT_FOUND_MESSAGE}), 404
     try:
         if 'producto' in data:
             item.producto = data['producto']
         if 'cantidad' in data:
             item.cantidad = data['cantidad']
         if 'fecha_descargo' in data:
-            # Si se envía la fecha de descargo, se intenta convertir a datetime; de lo contrario, se deja en None.
-            item.fecha_descargo = datetime.strptime(data['fecha_descargo'], "%Y-%m-%d %H:%M:%S") if data['fecha_descargo'] else None
+            item.fecha_descargo = datetime.strptime(data['fecha_descargo'], DATE_FORMAT) if data['fecha_descargo'] else None
         if 'usuario_responsable' in data:
             item.usuario_responsable = data['usuario_responsable']
         db.session.commit()
@@ -109,7 +130,7 @@ def update_inventory_item(item_id):
 def delete_inventory_item(item_id):
     item = Inventory.query.get(item_id)
     if not item:
-        return jsonify({'message': 'Registro no encontrado'}), 404
+        return jsonify({'message': NOT_FOUND_MESSAGE}), 404
     try:
         db.session.delete(item)
         db.session.commit()
@@ -122,4 +143,4 @@ def delete_inventory_item(item_id):
 # Iniciar la aplicación
 # -----------------------------------------------------------
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)

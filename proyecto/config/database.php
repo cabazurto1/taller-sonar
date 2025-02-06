@@ -3,26 +3,24 @@
  * Clase Database: Se encarga de establecer la conexión con la base de datos MySQL.
  */
 class Database {
-    private $host = "localhost";
-    private $db_name = "bd-taller";  // Nombre de la base de datos
-    private $username = "root";             // Usuario de MySQL
-    private $password = "";                 // Contraseña de MySQL
+    private $host = "db"; // Cambiado de "localhost" a "db"
+    private $db_name = "bd-taller";  
+    private $username = "root";             
+    private $password = "";                 
     public $conn;
 
-    // Método que retorna la conexión a la base de datos
     public function getConnection(){
         $this->conn = null;
         try {
             $this->conn = new PDO(
-                "mysql:host={$this->host};dbname={$this->db_name}", 
-                $this->username, 
+                "mysql:host={$this->host};dbname={$this->db_name};charset=utf8",
+                $this->username,
                 $this->password
             );
-            $this->conn->exec("set names utf8");
+            $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         } catch(PDOException $exception) {
             echo "Connection error: " . $exception->getMessage();
         }
         return $this->conn;
     }
 }
-?>

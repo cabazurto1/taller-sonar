@@ -16,7 +16,7 @@ const PhpApiPage: React.FC = () => {
 
   useEffect(() => {
     // Realiza la petición a la API REST de productos de PHP
-    fetch('http://localhost/proyecto/public/productos')
+    fetch('http://localhost:8080/proyecto/public/productos')
       .then((res) => res.json())
       .then((data: Product[]) => setProducts(data))
       .catch((err) => console.error("Error fetching products:", err));
